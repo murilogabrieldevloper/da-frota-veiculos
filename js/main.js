@@ -102,7 +102,7 @@ window.DF.ready.then(function () {
 
   function renderFilters() {
     const counts = Object.fromEntries(CATS.map((c) => [c, c === "Todos" ? vehicles.length : vehicles.filter((v) => (CATS.includes(v.category) ? v.category : "Outros") === c).length]));
-    filterRow.innerHTML = CATS.filter((c) => c === "Todos" || counts[c] > 0 || ["SUV", "Sedã", "Picape"].includes(c))
+    filterRow.innerHTML = CATS.filter((c) => c === "Todos" || counts[c] > 0)
       .map((c) => `<button class="filter${c === filter ? " active" : ""}" type="button" data-cat="${c}" aria-pressed="${c === filter}">${c}<span class="count">${counts[c]}</span></button>`).join("");
   }
 
