@@ -1,0 +1,7 @@
+# Segredos e dados do servidor — nunca versionar
+api/config.php
+api/data/*.sqlite*
+api/data/.ht.*
+uploads/veiculos/*
+!uploads/veiculos/index.html
+.claude/
