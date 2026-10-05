@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Da Frota Veículos</title>
+<meta name="description" content="Veículos selecionados, atendimento consultivo e simulação de financiamento online. Da Frota Veículos, Brasília – DF.">
+<meta name="theme-color" content="#080808">
+<meta property="og:title" content="Da Frota Veículos">
+<meta property="og:description" content="Seu próximo carro começa aqui.">
+<meta property="og:image" content="img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<link rel="preload" as="image" href="img/porsche-cayenne.jpeg">
+</head>
+<body>
+<div class="preloader" aria-hidden="true"><div class="preloader-inner"><img src="img/da-frota-logo-white.png" alt=""><div class="preloader-bar"></div></div></div>
+<div class="scroll-progress" aria-hidden="true"></div>
+
+<header class="site-header">
+  <nav class="container nav" aria-label="Navegação principal">
+    <a href="#inicio" class="brand" aria-label="Da Frota Veículos, início"><img src="img/da-frota-logo-white.png" alt="Da Frota Veículos" width="100" height="38"></a>
+    <div class="nav-links" id="nav-links">
+      <a href="#estoque">Estoque</a>
+      <a href="financiamento.html">Financiamento</a>
+      <a href="#empresa">A Da Frota</a>
+      <a href="#contato">Contato</a>
+    </div>
+    <div class="nav-actions">
+      <a class="button button-small" data-wa="Olá! Vim pelo site da Da Frota." target="_blank" rel="noreferrer">Falar agora <span aria-hidden="true">↗</span></a>
+      <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="nav-links"><span></span></button>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <section class="hero" id="inicio">
+    <div class="hero-backdrop"><img src="img/porsche-cayenne.jpeg" alt=""></div>
+    <div class="hero-glow"></div>
+    <div class="speed-lines" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="container hero-content">
+      <p class="eyebrow">Seleção exclusiva de veículos</p>
+      <h1><span class="line"><span>Seu próximo</span></span><span class="line"><span><em>carro</em> está</span></span><span class="line"><span>aqui.</span></span></h1>
+      <p class="hero-copy">Experiência, procedência e atendimento personalizado para você encontrar o veículo que combina com o seu momento.</p>
+      <div class="button-row">
+        <a class="button" href="#estoque">Ver veículos</a>
+        <a class="button button-ghost" href="financiamento.html">Quero financiar</a>
+      </div>
+      <div class="hero-meta">
+        <div><b data-count-stock>2</b>veículos no estoque</div>
+        <div><b>1:1</b>atendimento consultivo</div>
+        <div><b>DF</b>Brasília</div>
+      </div>
+    </div>
+    <p class="scroll-cue" aria-hidden="true">Role</p>
+  </section>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>Seleção premium</span><span>Atendimento consultivo</span><span>Ficha de financiamento online</span><span>Fale direto no WhatsApp</span><span>Brasília – DF</span>
+      <span>Seleção premium</span><span>Atendimento consultivo</span><span>Ficha de financiamento online</span><span>Fale direto no WhatsApp</span><span>Brasília – DF</span>
+    </div>
+  </div>
+
+  <section class="section" id="estoque">
+    <div class="container">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow" data-reveal>Veículos em destaque</p>
+          <h2 data-reveal style="--d:.08s">Escolha sua<br><em>próxima máquina.</em></h2>
+        </div>
+        <p data-reveal style="--d:.16s">Veículos selecionados para entregar mais presença, conforto e performance em cada detalhe.</p>
+      </div>
+      <div class="filter-row" role="group" aria-label="Filtrar veículos" data-reveal></div>
+      <div class="vehicle-grid" aria-live="polite"></div>
+      <p class="inventory-note" data-reveal>Quer um modelo específico? <a data-wa="Olá! Estou procurando um veículo específico e gostaria de ajuda." target="_blank" rel="noreferrer">Fale com nossa equipe.</a></p>
+    </div>
+  </section>
+
+  <section class="finance-band section" id="financiamento">
+    <div class="container finance-grid">
+      <div>
+        <p class="eyebrow" data-reveal>Financiamento</p>
+        <h2 data-reveal style="--d:.08s">A gente corre<br><em>atrás do banco.</em></h2>
+        <p data-reveal style="--d:.14s">Envie sua ficha pelo site. Nossa equipe consulta os bancos com que trabalhamos e retorna pelo WhatsApp com a aprovação.</p>
+        <ol class="steps" data-reveal style="--d:.2s">
+          <li><span><b>Preencha a ficha</b>Dados pessoais, endereço e renda. Cerca de 3 minutos.</span></li>
+          <li><span><b>Nós consultamos os bancos</b>Você não precisa ir a agência nenhuma.</span></li>
+          <li><span><b>Receba o retorno</b>Um consultor fala com você pelo WhatsApp.</span></li>
+        </ol>
+        <a class="button" href="financiamento.html" data-reveal style="--d:.26s">Enviar minha ficha <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="finance-checklist" data-reveal="scale" style="--d:.15s">
+        <h3>Tenha em <em>mãos</em></h3>
+        <ul class="doc-list">
+          <li>CPF e data de nascimento</li>
+          <li>Nome completo da mãe</li>
+          <li>CEP e endereço onde mora</li>
+          <li>Ocupação e renda mensal</li>
+          <li>Carro de interesse e quanto pode dar de entrada</li>
+        </ul>
+        <p class="fine-print">Os documentos (CNH, comprovante de residência e de renda) a equipe pede depois, pelo WhatsApp.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="showroom" id="empresa">
+    <div class="showroom-backdrop" data-parallax="0.15"><img src="img/fachada-da-frota.jpeg" alt="Fachada do showroom Da Frota Veículos" loading="lazy"></div>
+    <div class="container showroom-content">
+      <p class="eyebrow" data-reveal>Da Frota Veículos</p>
+      <h2 data-reveal style="--d:.08s">Mais que carros.<br><em>Uma escolha certa.</em></h2>
+      <p data-reveal style="--d:.14s">Na Da Frota, cada veículo é apresentado com transparência e atendimento próximo. Conheça nosso showroom em Brasília e encontre o carro que acompanha o seu próximo destino.</p>
+      <div class="stats" aria-label="Diferenciais da Da Frota">
+        <div data-reveal style="--d:.2s"><strong>Premium</strong><span>Seleção de veículos</span></div>
+        <div data-reveal style="--d:.28s"><strong>1:1</strong><span>Atendimento consultivo</span></div>
+        <div data-reveal style="--d:.36s"><strong data-countup data-count-stock>2</strong><span>Veículos disponíveis</span></div>
+      </div>
+      <div class="button-row" style="animation:none">
+        <a class="button button-ghost" data-wa="Olá! Quero agendar uma visita na Da Frota." target="_blank" rel="noreferrer" data-reveal style="--d:.4s">Agendar visita <span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="contato">
+    <div class="container contact-grid">
+      <div>
+        <p class="eyebrow" data-reveal>Vamos conversar</p>
+        <h2 data-reveal style="--d:.08s">Pronto para<br><em>acelerar?</em></h2>
+        <p class="contact-copy" data-reveal style="--d:.14s">Fale com a nossa equipe. Será um prazer encontrar o veículo ideal para você.</p>
+        <a class="button" data-wa="Olá! Quero falar com um consultor da Da Frota." target="_blank" rel="noreferrer" data-reveal style="--d:.2s">Chamar no WhatsApp <span aria-hidden="true">↗</span></a>
+      </div>
+      <form class="form-card" id="lead-form" novalidate data-reveal="scale" style="--d:.1s">
+        <h3>Solicite atendimento</h3>
+        <label class="field"><span>Seu nome</span><input id="lf-name" name="name" required autocomplete="name" placeholder="Como podemos te chamar?"></label>
+        <label class="field"><span>WhatsApp</span><input id="lf-phone" name="phone" required inputmode="tel" autocomplete="tel" placeholder="(61) 99999-9999"></label>
+        <label class="field"><span>Mensagem</span><textarea id="lf-message" name="message" rows="3" placeholder="Qual veículo você procura?"></textarea></label>
+        <button class="button" type="submit">Enviar interesse</button>
+        <p class="form-success" hidden>✓ Recebemos seu interesse. Nossa equipe retornará em breve.</p>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container footer-content">
+    <img src="img/da-frota-logo-white.png" alt="Da Frota Veículos" width="90" height="34">
+    <p>© <span data-year>2026</span> Da Frota Veículos · DAFROTA VEÍCULOS LTDA · Brasília – DF</p>
+    <nav aria-label="Rodapé">
+      <a data-ig target="_blank" rel="noreferrer">Instagram</a>
+      <a href="financiamento.html">Financiamento</a>
+      <a href="consultor.html">Área do consultor</a>
+    </nav>
+  </div>
+</footer>
+
+<aside class="chat" aria-label="Atendimento Da Frota">
+  <div class="chat-header">
+    <div><strong>Atendimento Da Frota</strong><span>Responde em poucos minutos</span></div>
+    <button type="button" class="chat-close" aria-label="Fechar atendimento">×</button>
+  </div>
+  <div class="chat-messages" aria-live="polite"></div>
+  <form class="chat-form">
+    <input id="chat-input" placeholder="Digite sua mensagem..." aria-label="Mensagem para o atendimento" autocomplete="off">
+    <button type="submit" aria-label="Enviar mensagem">→</button>
+  </form>
+</aside>
+<button class="chat-toggle" type="button" aria-label="Abrir atendimento"><span class="pulse"></span>Atendimento</button>
+
+<script src="js/store.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

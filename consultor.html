@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Área do Consultor Da Frota</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#080808">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/consultor.css">
+</head>
+<body class="admin">
+
+<!-- Login -->
+<div class="login-wrap" id="login" hidden>
+  <div class="login-art">
+    <img class="bg" src="img/fachada-da-frota.jpeg" alt="">
+    <p class="eyebrow">Uso interno</p>
+    <h1>Área do<br><em>consultor.</em></h1>
+    <p>Estoque, leads e fichas de financiamento em um só lugar.</p>
+  </div>
+  <div class="login-panel">
+    <form class="login-card" id="login-form" novalidate>
+      <img src="img/da-frota-logo-white.png" alt="Da Frota Veículos" width="115" height="44">
+      <h2 id="login-title">Entrar</h2>
+      <p id="login-sub">Escolha quem está entrando.</p>
+      <div class="field"><span class="field-label" id="user-label">Consultor</span><div class="chips user-pick" id="user-pick" role="group" aria-labelledby="user-label"></div></div>
+      <label class="field" id="pass-field" hidden><span>Senha</span>
+        <div class="pass-wrap"><input id="pass" type="password" autocomplete="current-password" placeholder="••••••••"><button type="button" id="show-pass">Mostrar</button></div>
+      </label>
+      <label class="field" id="code-field" hidden><span>Código de ativação</span><input id="code" autocomplete="off" autocapitalize="characters" placeholder="DF-XXXX-XXXX"><small>Está no arquivo de instruções que veio com o site.</small></label>
+      <label class="field" id="pass2-field" hidden><span>Confirme a senha</span><input id="pass2" type="password" autocomplete="new-password" placeholder="••••••••"></label>
+      <p class="error" id="login-error" role="alert"></p>
+      <button class="button button-block" type="submit" id="login-btn">Entrar</button>
+      <a class="text-link" href="index.html">← Voltar ao site</a>
+    </form>
+  </div>
+</div>
+
+<!-- Painel -->
+<div class="app" id="app" hidden>
+  <aside class="sidebar" id="sidebar">
+    <img class="logo" src="img/da-frota-logo-white.png" alt="Da Frota Veículos" width="90" height="34">
+    <button class="side-link" data-view="painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg>Painel</button>
+    <button class="side-link" data-view="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>Leads<span class="pill count" id="badge-leads" hidden></span></button>
+    <button class="side-link" data-view="financiamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M8 6h8M8 10h2M14 10h2M8 14h2M14 14h2M8 18h2M14 18h2"/></svg>Fichas</button>
+    <button class="side-link" data-view="estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h14M3 17v-4l2-5h14l2 5v4M7 17v2M17 17v2"/><circle cx="7.5" cy="13.5" r="1"/><circle cx="16.5" cy="13.5" r="1"/></svg>Estoque</button>
+    <button class="side-link" data-view="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Configurações</button>
+    <div class="spacer"></div>
+    <a class="side-link" href="index.html" target="_blank" rel="noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg>Ver site</a>
+    <button class="side-link" id="logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair</button>
+    <p class="side-foot">Da Frota Veículos · Painel v2</p>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="side-toggle" id="side-toggle" aria-label="Abrir menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <h1 id="view-title">Painel</h1>
+      <span class="grow"></span>
+      <span class="who" id="today"></span>
+      <span class="me"><span class="avatar" id="me-avatar" aria-hidden="true"></span><span id="me-name"></span></span>
+      <button class="button button-small" id="top-new">+ Novo veículo</button>
+    </header>
+    <div class="content" id="view"></div>
+  </div>
+</div>
+
+<script src="js/store.js"></script>
+<script src="js/consultor.js"></script>
+</body>
+</html>
