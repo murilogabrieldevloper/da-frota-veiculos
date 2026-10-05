@@ -149,6 +149,39 @@
     write("leads", localLeads().filter((l) => l.id !== id));
   }
 
+  /* ---------- Financeiro (só na Área do Consultor, exige login) ---------- */
+  async function getFin() {
+    await ready;
+    if (online) { const r = await call("fin"); return { cars: r.cars || [], expenses: r.expenses || [] }; }
+    return { cars: read("fin-cars", []), expenses: read("fin-expenses", []) };
+  }
+  function saveLocal(key, item) {
+    const list = read(key, []);
+    const now = new Date().toISOString();
+    if (!item.id) { item.id = uid(); item.createdAt = now; }
+    item.updatedAt = now;
+    const i = list.findIndex((x) => x.id === item.id);
+    if (i >= 0) list[i] = item; else list.unshift(item);
+    if (!write(key, list)) throw new Error("Sem espaço para salvar neste navegador.");
+    return item;
+  }
+  async function saveFinCar(car) {
+    if (online) return (await call("fincar", { method: "POST", body: { car } })).car;
+    return saveLocal("fin-cars", { ...car });
+  }
+  async function deleteFinCar(id) {
+    if (online) { await call("fincar", { method: "DELETE", query: "id=" + encodeURIComponent(id) }); return; }
+    write("fin-cars", read("fin-cars", []).filter((c) => c.id !== id));
+  }
+  async function saveFinExpense(expense) {
+    if (online) return (await call("finexp", { method: "POST", body: { expense } })).expense;
+    return saveLocal("fin-expenses", { ...expense });
+  }
+  async function deleteFinExpense(id) {
+    if (online) { await call("finexp", { method: "DELETE", query: "id=" + encodeURIComponent(id) }); return; }
+    write("fin-expenses", read("fin-expenses", []).filter((e) => e.id !== id));
+  }
+
   /* ---------- Financiamento (Tabela Price) ---------- */
   function pmt(principal, taxaMensalPct, n) {
     const i = taxaMensalPct / 100;
@@ -242,6 +275,7 @@
     read, write, uid,
     getVehicles, saveVehicle, deleteVehicle, localVehicles,
     addLead, getLeads, updateLead, deleteLead,
+    getFin, saveFinCar, deleteFinCar, saveFinExpense, deleteFinExpense,
     pmt, taxaAnual, fichaTexto, parseFicha, brl, num, wa, maskPhone, maskCPF, validCPF, maskMoney, esc, toast,
   };
 })();

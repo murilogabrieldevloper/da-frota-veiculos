@@ -183,3 +183,39 @@ table.sims tbody tr:hover { background: #ffffff06; }
 @media (max-width: 900px) { .me #me-name { display: none; } }
 .note.ok-note { border-color: #56cb8666; background: #56cb8612; color: #c9f2da; }
 .note.ok-note b { color: var(--ok); }
+
+/* Financeiro */
+.fin-head { margin-bottom: 20px; }
+.month-nav { display: inline-flex; align-items: center; gap: 10px; }
+.month-nav b { min-width: 170px; text-align: center; font-family: var(--display); font-weight: 400; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; }
+.month-nav .mini-btn { min-width: 40px; font-size: 18px; }
+#fin-body { display: grid; gap: 20px; }
+table.fin-table th.num, table.fin-table td.num { text-align: right; }
+table.fin-table tr.total td { font-weight: 700; border-top: 1px solid var(--soft); cursor: default; }
+table.fin-table tr.current td { background: #f4581d12; }
+table.fin-table td small { font-size: 12px; }
+.fin-total { font-family: var(--display); font-weight: 400; font-size: 26px; color: var(--orange); font-variant-numeric: tabular-nums; }
+.fin-funnel .funnel-row { grid-template-columns: minmax(120px, 1.1fr) minmax(60px, 1fr) auto; }
+.fin-funnel .funnel-row b { white-space: nowrap; }
+.fin-sec { margin: 6px 0 -6px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--orange-pale); }
+.fin-sec:first-child { border-top: 0; padding-top: 0; }
+.fin-sec small { margin-left: 6px; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--muted); }
+.gasto-list { display: grid; gap: 8px; }
+.gasto-row { display: grid; grid-template-columns: 140px 130px minmax(0, 1fr) 130px 40px; gap: 6px; align-items: center; animation: cardIn .3s var(--ease) both; }
+.gasto-row .input { width: 100%; min-width: 0; }
+.gasto-row .money input { padding-left: 38px !important; }
+.gasto-row .icon-btn { width: 40px; height: 42px; }
+@media (max-width: 620px) { .gasto-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; } .gasto-row [data-g="desc"] { grid-column: 1 / -1; grid-row: 2; } .gasto-row .money { grid-column: 1 / 3; grid-row: 3; } }
+.fin-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.fin-sum > div { background: var(--ink); padding: 12px 14px; display: grid; gap: 2px; }
+.fin-sum span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.fin-sum b { font-variant-numeric: tabular-nums; }
+.fin-sum .big { grid-column: 1 / -1; }
+.fin-sum .big b { font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1.05; }
+.fin-sum .big small { color: var(--soft); }
+.fin-sum .big.comp-ok b, .fin-sum .big.comp-bad b { color: inherit; }
+.exp-form { display: grid; grid-template-columns: 150px 170px minmax(0, 1fr) 160px auto; gap: 12px; align-items: end; }
+@media (max-width: 900px) { .exp-form { grid-template-columns: 1fr 1fr; } .exp-form .button { grid-column: 1 / -1; } }
+.drawer { grid-template-columns: minmax(0, 1fr); }
+.drawer-foot { flex-wrap: wrap; }
+.gasto-row input[type="date"] { min-width: 0; }

@@ -137,7 +137,7 @@ window.DF.ready.then(function () {
      Estrutura e navegação
      ========================================================= */
   let leads = [], vehicles = [], view = "painel", openLeadId = null;
-  const VIEWS = { painel: "Painel", leads: "Leads", financiamento: "Fichas de financiamento", estoque: "Estoque", config: "Configurações" };
+  const VIEWS = { painel: "Painel", leads: "Leads", financiamento: "Fichas de financiamento", estoque: "Estoque", financeiro: "Financeiro", config: "Configurações" };
 
   async function load() {
     try { [leads, vehicles] = await Promise.all([getLeads(), getVehicles({ includeSold: true })]); }
@@ -173,7 +173,7 @@ window.DF.ready.then(function () {
   function render() {
     const el = $("#view");
     el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
-    ({ painel: renderPainel, leads: renderLeads, financiamento: renderFichas, estoque: renderEstoque, config: renderConfig })[view](el);
+    ({ painel: renderPainel, leads: renderLeads, financiamento: renderFichas, estoque: renderEstoque, financeiro: renderFinanceiro, config: renderConfig })[view](el);
   }
   $$(".side-link[data-view]").forEach((b) => b.addEventListener("click", () => go(b.dataset.view)));
   $("#top-new").addEventListener("click", () => openDrawer());
@@ -598,6 +598,354 @@ window.DF.ready.then(function () {
   }
 
   /* =========================================================
+     Financeiro (custos por carro, despesas da loja, fechamento do mês)
+     ========================================================= */
+  const F = window.DFFin;
+  let fin = null, finTab = "carros", finMonth = F.monthOf(F.todayISO()), finFilter = "estoque", finQ = "";
+  async function loadFin() {
+    try { fin = await DF.getFin(); } catch (e) { fin = null; fail(e); }
+    return fin;
+  }
+  // Valores: inteiros sem centavos, quebrados com centavos
+  const money = (n) => (n == null || isNaN(n) ? "—" : brl(n, Number.isInteger(+n) ? 0 : 2));
+  const cents = (n) => (n == null || n === "" ? "" : Number(n).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const maskCents = (v) => { const d = String(v).replace(/\D/g, "").replace(/^0+(?=\d)/, ""); return d ? cents(+d / 100) : ""; };
+  const readMoney = (v) => (String(v || "").trim() ? DF.num(v) : null);
+  const signClass = (n) => (n == null ? "" : n < 0 ? "comp-bad" : "comp-ok");
+  const pctOrDash = (n) => (n == null ? "—" : pct(n));
+  const normPlaca = (s) => String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
+  const fmtPlaca = (p) => (p && p.length === 7 && /^[A-Z]{3}\d{4}$/.test(p) ? p.slice(0, 3) + "-" + p.slice(3) : p || "—");
+  const monthNav = () => `<div class="month-nav" role="group" aria-label="Escolher mês"><button class="mini-btn" type="button" data-mon="-1" aria-label="Mês anterior">‹</button><b>${esc(F.monthLabel(finMonth))}</b><button class="mini-btn" type="button" data-mon="1" aria-label="Próximo mês">›</button></div>`;
+
+  function renderFinanceiro(el) {
+    if (!fin) {
+      el.innerHTML = `<div class="empty">Carregando financeiro…</div>`;
+      loadFin().then((ok) => { if (ok && view === "financeiro") renderFinanceiro(el); else if (!ok) el.innerHTML = `<div class="empty">Não consegui carregar o financeiro. <button class="mini-btn" type="button" data-retry>Tentar de novo</button></div>`; $("[data-retry]", el)?.addEventListener("click", () => renderFinanceiro(el)); });
+      return;
+    }
+    const TABS = [["carros", "Carros"], ["despesas", "Despesas da loja"], ["fechamento", "Fechamento do mês"]];
+    el.innerHTML = `
+      <div class="toolbar fin-head">
+        <div class="chips" role="tablist" aria-label="Seções do financeiro">${TABS.map(([k, t]) => `<button class="chip" type="button" role="tab" data-ftab="${k}" aria-pressed="${finTab === k}" aria-selected="${finTab === k}">${t}</button>`).join("")}</div>
+        <span style="flex:1"></span>
+        ${finTab === "carros" ? `<button class="button button-small" type="button" data-fnew>+ Lançar compra</button>` : monthNav()}
+      </div>
+      <div id="fin-body"></div>`;
+    $$("[data-ftab]", el).forEach((b) => b.addEventListener("click", () => { finTab = b.dataset.ftab; renderFinanceiro(el); }));
+    $$("[data-mon]", el).forEach((b) => b.addEventListener("click", () => { finMonth = F.addMonths(finMonth, +b.dataset.mon); renderFinanceiro(el); }));
+    $("[data-fnew]", el)?.addEventListener("click", () => openFinDrawer());
+    const body = $("#fin-body", el);
+    ({ carros: finCarros, despesas: finDespesas, fechamento: finFechamento })[finTab](body, el);
+    $$("[data-to]", el).forEach(countUp);
+    requestAnimationFrame(() => setTimeout(() => $$("[data-w]", el).forEach((i) => (i.style.width = i.dataset.w + "%")), 60));
+  }
+
+  /* ---------- Carros ---------- */
+  function finCarros(body, el) {
+    const cars = fin.cars;
+    const st = F.stock(cars);
+    const mes = F.monthClose(cars, fin.expenses, F.monthOf(F.todayISO()));
+    const groups = { estoque: cars.filter((c) => !F.isSold(c)), vendidos: cars.filter(F.isSold), todos: cars };
+    const q = finQ.trim().toLowerCase(), qp = normPlaca(finQ);
+    const list = groups[finFilter].filter((c) => !q || (c.modelo || "").toLowerCase().includes(q) || (qp && (c.placa || "").includes(qp)))
+      .sort((a, b) => String((F.isSold(b) && b.vendaData) || b.compraData).localeCompare(String((F.isSold(a) && a.vendaData) || a.compraData)));
+    body.innerHTML = `
+      <div class="kpis">
+        <div class="kpi"><span>Carros em estoque</span><strong data-to="${st.qtd}">0</strong><small>${st.diasMedios != null ? `parados em média há ${Math.round(st.diasMedios)} dias` : "nenhum carro lançado"}</small></div>
+        <div class="kpi"><span>Dinheiro no estoque</span><strong data-to="${st.capital}" data-fmt="brl">0</strong><small>compra + gastos dos carros não vendidos</small></div>
+        <div class="kpi"><span>Vendidos neste mês</span><strong data-to="${mes.qtd}">0</strong><small>${mes.qtd ? `faturamento de ${money(mes.faturamento)}` : "nenhuma venda ainda"}</small></div>
+        <div class="kpi hot"><span>Lucro bruto do mês</span><strong data-to="${mes.lucroBruto}" data-fmt="brl">0</strong><small>${mes.margem != null ? `margem de ${pct(mes.margem)}` : "carros vendidos no mês"}</small></div>
+      </div>
+      <section class="panel">
+        <div class="panel-head">
+          <div class="chips" role="group" aria-label="Filtrar carros">
+            ${[["estoque", "Em estoque"], ["vendidos", "Vendidos"], ["todos", "Todos"]].map(([k, t]) => `<button class="chip" type="button" data-ff="${k}" aria-pressed="${finFilter === k}">${t} (${groups[k].length})</button>`).join("")}
+          </div>
+          <input class="input" type="search" id="fin-q" value="${esc(finQ)}" placeholder="Buscar por placa ou modelo" aria-label="Buscar carro" style="flex:0 1 260px">
+        </div>
+        ${list.length ? `<div class="table-wrap"><table class="sims fin-table"><thead><tr><th>Placa</th><th>Veículo</th><th>Compra</th><th class="num">Valor pago</th><th class="num">Gastos</th><th class="num">Custo total</th><th class="num">Venda</th><th class="num">Lucro</th><th class="num">Margem</th><th class="num">Dias</th></tr></thead><tbody>
+          ${list.map((c) => { const l = F.lucro(c); return `<tr data-fcar="${esc(c.id)}" tabindex="0"><td><b>${esc(fmtPlaca(c.placa))}</b></td><td>${esc(c.modelo)}${c.ano ? ` <span class="src">${esc(c.ano)}</span>` : ""}</td><td>${dmy(c.compraData)}</td><td class="num">${money(c.compraValor)}</td><td class="num">${money(F.gastosTotal(c))}</td><td class="num">${money(F.custoTotal(c))}</td><td class="num">${F.isSold(c) ? `${money(c.vendaValor)}<br><small class="src">${dmy(c.vendaData)}</small>` : `<span class="pill s-disponivel">Em estoque</span>`}</td><td class="num ${signClass(l)}">${l == null ? "—" : money(l)}</td><td class="num ${signClass(l)}">${pctOrDash(F.margem(c))}</td><td class="num">${F.dias(c) ?? "—"}</td></tr>`; }).join("")}
+        </tbody></table></div>` : `<div class="empty">${cars.length ? "Nenhum carro nesta lista." : `Nenhum carro lançado ainda.<br>Clique em <b>+ Lançar compra</b> para registrar o primeiro.`}</div>`}
+      </section>`;
+    $$("[data-ff]", body).forEach((b) => b.addEventListener("click", () => { finFilter = b.dataset.ff; renderFinanceiro(el); }));
+    const qi = $("#fin-q", body);
+    qi.addEventListener("input", () => { finQ = qi.value; const pos = qi.selectionStart; renderFinanceiro(el); const n = $("#fin-q"); n.focus(); n.setSelectionRange(pos, pos); });
+    $$("tr[data-fcar]", body).forEach((tr) => {
+      const open = () => openFinDrawer(fin.cars.find((c) => c.id === tr.dataset.fcar));
+      tr.addEventListener("click", open);
+      tr.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
+    });
+  }
+
+  /* ---------- Gaveta: lançar/editar carro ---------- */
+  function openFinDrawer(car) {
+    const editing = !!car;
+    const d = { modelo: "", placa: "", ano: "", cor: "", vehicleId: "", compraData: F.todayISO(), compraValor: null, fornecedor: "", gastos: [], vendaData: "", vendaValor: null, comprador: "", obs: "", ...(car ? structuredClone(car) : {}) };
+    d.gastos = (d.gastos || []).map((g) => ({ ...g }));
+    const scrim = document.createElement("div"); scrim.className = "drawer-scrim";
+    const dr = document.createElement("aside"); dr.className = "drawer"; dr.setAttribute("role", "dialog"); dr.setAttribute("aria-modal", "true"); dr.setAttribute("aria-label", editing ? "Editar carro" : "Lançar compra");
+    const opt = (arr, cur) => arr.map((o) => { const [val, lab] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(val)}"${String(cur) === String(val) ? " selected" : ""}>${esc(lab)}</option>`; }).join("");
+    const anuncios = [["", "— Nenhum —"], ...vehicles.map((v) => [v.id, `${v.title}${v.status === "vendido" ? " (vendido)" : ""}`])];
+    dr.innerHTML = `
+      <div class="drawer-head"><h2>${editing ? `${esc(fmtPlaca(d.placa))} · <em>${esc(d.modelo)}</em>` : "Lançar <em>compra</em>"}</h2><button class="icon-btn" type="button" data-close aria-label="Fechar">×</button></div>
+      <form class="drawer-body" id="fform" novalidate>
+        <p class="fin-sec">Veículo</p>
+        <label class="field"><span>Anúncio no site (opcional)</span><select id="f-vehicle">${opt(anuncios, d.vehicleId || "")}</select><small class="src">Ao registrar a venda, o anúncio vinculado sai do site automaticamente.</small></label>
+        <label class="field" id="ff-modelo"><span>Veículo *</span><input id="f-modelo" value="${esc(d.modelo)}" placeholder="Ex.: Porsche Cayenne S"><small class="error"></small></label>
+        <div class="field-row">
+          <label class="field" id="ff-placa"><span>Placa *</span><input id="f-placa" value="${esc(d.placa)}" placeholder="ABC1D23" maxlength="8" autocapitalize="characters" style="text-transform:uppercase"><small class="error"></small></label>
+          <label class="field"><span>Ano</span><input id="f-ano" value="${esc(d.ano)}" placeholder="2023/2024" maxlength="9" inputmode="numeric"></label>
+          <label class="field"><span>Cor</span><input id="f-cor" value="${esc(d.cor)}" placeholder="Branco"></label>
+        </div>
+        <p class="fin-sec">Compra</p>
+        <div class="field-row">
+          <label class="field" id="ff-cdata"><span>Data da compra *</span><input id="f-cdata" type="date" value="${esc(d.compraData)}"><small class="error"></small></label>
+          <label class="field" id="ff-cvalor"><span>Valor pago *</span><div class="money"><input id="f-cvalor" inputmode="numeric" value="${cents(d.compraValor)}" placeholder="0,00"></div><small class="error"></small></label>
+        </div>
+        <label class="field"><span>Comprado de</span><input id="f-forn" value="${esc(d.fornecedor)}" placeholder="Nome do vendedor, leilão, troca…"></label>
+        <p class="fin-sec">Gastos com o carro <small>documentação, preparação, comissão…</small></p>
+        <div id="f-gastos" class="gasto-list"></div>
+        <button class="mini-btn" type="button" id="f-addg" style="justify-self:start">+ Adicionar gasto</button>
+        <p class="fin-sec">Venda <small>deixe em branco enquanto o carro estiver à venda</small></p>
+        <div class="field-row">
+          <label class="field" id="ff-vdata"><span>Data da venda</span><input id="f-vdata" type="date" value="${esc(d.vendaData || "")}"><small class="error"></small></label>
+          <label class="field" id="ff-vvalor"><span>Valor de venda</span><div class="money"><input id="f-vvalor" inputmode="numeric" value="${cents(d.vendaValor)}" placeholder="0,00"></div><small class="error"></small></label>
+        </div>
+        <label class="field"><span>Vendido para</span><input id="f-comprador" value="${esc(d.comprador)}" placeholder="Nome do cliente"></label>
+        <div class="fin-sum" id="f-sum" aria-live="polite"></div>
+        <label class="field"><span>Observações</span><textarea id="f-obs" rows="3" placeholder="Pendências, combinados, histórico…">${esc(d.obs)}</textarea></label>
+      </form>
+      <div class="drawer-foot">${editing ? `<span id="f-delwrap" style="margin-right:auto"><button class="btn-danger" type="button" id="f-del">Excluir</button></span>` : ""}<button class="button button-ghost button-small" type="button" data-close>Cancelar</button><button class="button button-small" type="button" id="f-save">${editing ? "Salvar alterações" : "Lançar compra"}</button></div>`;
+    document.body.append(scrim, dr);
+    document.body.style.overflow = "hidden";
+    $(editing ? "#f-addg" : "#f-vehicle", dr).focus();
+
+    const paintGastos = () => {
+      $("#f-gastos", dr).innerHTML = d.gastos.length ? d.gastos.map((g, i) => `
+        <div class="gasto-row" data-gi="${i}">
+          <input class="input" type="date" data-g="data" value="${esc(g.data || "")}" aria-label="Data do gasto">
+          <select class="input" data-g="tipo" aria-label="Tipo de gasto">${opt(F.GASTO_TIPOS, g.tipo || "Documentação")}</select>
+          <input class="input" data-g="desc" value="${esc(g.desc || "")}" placeholder="Descrição" aria-label="Descrição do gasto">
+          <div class="money"><input class="input" data-g="valor" inputmode="numeric" value="${cents(g.valor)}" placeholder="0,00" aria-label="Valor do gasto"></div>
+          <button class="icon-btn" type="button" data-grm aria-label="Remover gasto">×</button>
+        </div>`).join("") : `<p class="src" style="margin:0">Nenhum gasto lançado.</p>`;
+    };
+    const paintSum = () => {
+      const c = collect();
+      const sold = F.isSold(c), l = F.lucro(c);
+      $("#f-sum", dr).innerHTML = `
+        <div><span>Valor pago</span><b>${money(c.compraValor || 0)}</b></div>
+        <div><span>Gastos</span><b>${money(F.gastosTotal(c))}</b></div>
+        <div><span>Custo total</span><b>${money(F.custoTotal(c))}</b></div>
+        ${sold ? `<div><span>Venda</span><b>${money(c.vendaValor)}</b></div>
+        <div class="big ${signClass(l)}"><span>${l < 0 ? "Prejuízo" : "Lucro"}</span><b>${money(l)}</b><small>margem ${pctOrDash(F.margem(c))} · ${F.dias(c)} dias em estoque</small></div>`
+        : `<div class="big"><span>Para ter lucro, venda acima de</span><b>${money(F.custoTotal(c))}</b><small>${F.dias(c) ?? 0} dias em estoque</small></div>`}`;
+    };
+    function collect() {
+      return {
+        ...d, modelo: $("#f-modelo", dr).value.trim(), placa: normPlaca($("#f-placa", dr).value), ano: $("#f-ano", dr).value.trim(), cor: $("#f-cor", dr).value.trim(),
+        vehicleId: $("#f-vehicle", dr).value || null, compraData: $("#f-cdata", dr).value, compraValor: readMoney($("#f-cvalor", dr).value), fornecedor: $("#f-forn", dr).value.trim(),
+        gastos: d.gastos.filter((g) => g.valor > 0).map((g) => ({ ...g, data: g.data || $("#f-cdata", dr).value })),
+        vendaData: $("#f-vdata", dr).value || null, vendaValor: readMoney($("#f-vvalor", dr).value), comprador: $("#f-comprador", dr).value.trim(), obs: $("#f-obs", dr).value.trim(),
+      };
+    }
+    paintGastos(); paintSum();
+
+    $("#f-vehicle", dr).addEventListener("change", (e) => {
+      const v = vehicles.find((x) => x.id === e.target.value); if (!v) return;
+      if (!$("#f-modelo", dr).value.trim()) $("#f-modelo", dr).value = v.title;
+      if (!$("#f-ano", dr).value.trim() && v.year) $("#f-ano", dr).value = v.year;
+      if (!$("#f-cor", dr).value.trim() && v.color) $("#f-cor", dr).value = v.color;
+    });
+    $("#f-placa", dr).addEventListener("input", (e) => (e.target.value = normPlaca(e.target.value)));
+    ["#f-cvalor", "#f-vvalor"].forEach((s) => $(s, dr).addEventListener("input", (e) => { e.target.value = maskCents(e.target.value); paintSum(); }));
+    ["#f-cdata", "#f-vdata"].forEach((s) => $(s, dr).addEventListener("change", paintSum));
+    $("#f-addg", dr).addEventListener("click", () => {
+      d.gastos.push({ id: DF.uid(), data: F.todayISO(), tipo: "Documentação", desc: "", valor: null });
+      paintGastos(); $(`[data-gi="${d.gastos.length - 1}"] [data-g="desc"]`, dr).focus();
+    });
+    const gl = $("#f-gastos", dr);
+    gl.addEventListener("input", (e) => {
+      const row = e.target.closest("[data-gi]"); if (!row) return;
+      const g = d.gastos[+row.dataset.gi], k = e.target.dataset.g;
+      if (k === "valor") { e.target.value = maskCents(e.target.value); g.valor = readMoney(e.target.value); paintSum(); } else g[k] = e.target.value;
+    });
+    gl.addEventListener("change", (e) => { const row = e.target.closest("[data-gi]"); if (row && e.target.dataset.g) d.gastos[+row.dataset.gi][e.target.dataset.g] = e.target.dataset.g === "valor" ? readMoney(e.target.value) : e.target.value; });
+    gl.addEventListener("click", (e) => { const b = e.target.closest("[data-grm]"); if (!b) return; d.gastos.splice(+b.closest("[data-gi]").dataset.gi, 1); paintGastos(); paintSum(); });
+
+    const close = () => {
+      dr.classList.add("closing"); scrim.style.opacity = "0"; scrim.style.transition = "opacity .3s";
+      setTimeout(() => { dr.remove(); scrim.remove(); document.body.style.overflow = ""; }, reduce ? 0 : 300);
+      removeEventListener("keydown", onKey);
+    };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    addEventListener("keydown", onKey);
+    scrim.addEventListener("click", close);
+    $$("[data-close]", dr).forEach((b) => b.addEventListener("click", close));
+
+    $("#f-delwrap", dr)?.addEventListener("click", async (e) => {
+      const w = e.currentTarget;
+      if (e.target.closest("#f-del")) w.innerHTML = `<span class="confirm-inline">Excluir do financeiro? <button class="btn-danger" type="button" data-yes>Sim</button><button class="mini-btn" type="button" data-no>Não</button></span>`;
+      if (e.target.closest("[data-no]")) w.innerHTML = `<button class="btn-danger" type="button" id="f-del">Excluir</button>`;
+      if (e.target.closest("[data-yes]")) {
+        try { await DF.deleteFinCar(car.id); fin.cars = fin.cars.filter((x) => x.id !== car.id); toast("Carro excluído do financeiro."); close(); render(); } catch (ex) { fail(ex); }
+      }
+    });
+
+    $("#f-save", dr).addEventListener("click", async () => {
+      const c = collect();
+      const fields = { modelo: "#ff-modelo", placa: "#ff-placa", cdata: "#ff-cdata", cvalor: "#ff-cvalor", vdata: "#ff-vdata", vvalor: "#ff-vvalor" };
+      Object.values(fields).forEach((s) => { const f = $(s, dr); f.classList.remove("invalid"); $(".error", f).textContent = ""; });
+      const errs = [];
+      if (c.modelo.length < 2) errs.push(["modelo", "Informe o veículo."]);
+      if (!/^[A-Z]{3}\d[A-Z\d]\d{2}$/.test(c.placa)) errs.push(["placa", "Placa inválida. Ex.: ABC1234 ou ABC1D23."]);
+      if (!c.compraData) errs.push(["cdata", "Informe a data."]);
+      if (c.compraValor == null) errs.push(["cvalor", "Informe o valor pago."]);
+      if (c.vendaData && c.vendaValor == null) errs.push(["vvalor", "Informe o valor de venda."]);
+      if (!c.vendaData && c.vendaValor != null) errs.push(["vdata", "Informe a data da venda."]);
+      if (c.vendaData && c.compraData && c.vendaData < c.compraData) errs.push(["vdata", "A venda não pode ser antes da compra."]);
+      const dup = fin.cars.find((x) => x.placa === c.placa && x.id !== c.id && !F.isSold(x));
+      if (dup && !errs.length) errs.push(["placa", `Essa placa já está no estoque (${dup.modelo}).`]);
+      if (errs.length) {
+        errs.forEach(([k, m]) => { const f = $(fields[k], dr); f.classList.add("invalid"); $(".error", f).textContent = m; });
+        $(fields[errs[0][0]] + " input", dr)?.focus();
+        return;
+      }
+      const sb = $("#f-save", dr); sb.disabled = true; sb.textContent = "Salvando…";
+      try {
+        const saved = await DF.saveFinCar(c);
+        const i = fin.cars.findIndex((x) => x.id === saved.id);
+        if (i >= 0) fin.cars[i] = saved; else fin.cars.unshift(saved);
+        const justSold = F.isSold(saved) && !(car && F.isSold(car));
+        toast(justSold ? `Venda registrada: ${F.lucro(saved) < 0 ? "prejuízo" : "lucro"} de ${money(F.lucro(saved))}.` : editing ? "Alterações salvas." : "Compra lançada.", "ok");
+        // Carro vendido → anúncio vinculado sai do site
+        const v = F.isSold(saved) && saved.vehicleId && vehicles.find((x) => x.id === saved.vehicleId);
+        if (v && v.status !== "vendido") {
+          try { Object.assign(v, await saveVehicle({ ...v, status: "vendido" })); toast(`Anúncio “${v.title}” marcado como vendido e retirado do site.`); }
+          catch (ex) { toast("A venda foi salva, mas não consegui tirar o anúncio do site. Marque como vendido no Estoque.", "err"); }
+        }
+        if (justSold) finFilter = "vendidos";
+        close(); if (view === "financeiro") render(); else go("financeiro");
+      } catch (err) { fail(err); sb.disabled = false; sb.textContent = editing ? "Salvar alterações" : "Lançar compra"; }
+    });
+  }
+
+  /* ---------- Despesas da loja ---------- */
+  function finDespesas(body, el) {
+    const list = fin.expenses.filter((e) => F.monthOf(e.data) === finMonth).sort((a, b) => String(a.data).localeCompare(String(b.data)));
+    const total = list.reduce((s, e) => s + e.valor, 0);
+    const prevYm = F.addMonths(finMonth, -1);
+    const prev = fin.expenses.filter((e) => F.monthOf(e.data) === prevYm);
+    const today = F.todayISO();
+    const defDate = F.monthOf(today) === finMonth ? today : finMonth + "-01";
+    body.innerHTML = `
+      <section class="panel">
+        <div class="panel-head"><h2>Lançar despesa</h2><span class="src">Aluguel, salários, anúncios, contador…</span></div>
+        <form class="panel-body exp-form" id="exp-form" novalidate>
+          <label class="field"><span>Data</span><input id="e-data" type="date" value="${defDate}"></label>
+          <label class="field"><span>Categoria</span><select id="e-cat">${F.DESP_CATS.map((c) => `<option>${esc(c)}</option>`).join("")}</select></label>
+          <label class="field"><span>Descrição</span><input id="e-desc" placeholder="Ex.: Aluguel do showroom"></label>
+          <label class="field"><span>Valor</span><div class="money"><input id="e-valor" inputmode="numeric" placeholder="0,00"></div></label>
+          <button class="button button-small" type="submit">Adicionar</button>
+        </form>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Despesas de ${esc(F.monthLabel(finMonth))}</h2><b class="fin-total">${money(F.r2(total))}</b></div>
+        ${list.length ? `<div class="table-wrap"><table class="sims fin-table"><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th class="num">Valor</th><th></th></tr></thead><tbody>
+          ${list.map((e) => `<tr data-exp="${esc(e.id)}"><td>${dmy(e.data)}</td><td>${esc(e.categoria)}</td><td>${esc(e.desc || "—")}</td><td class="num">${money(e.valor)}</td><td class="num"><button class="mini-btn" type="button" data-edel style="color:var(--danger)">Excluir</button></td></tr>`).join("")}
+        </tbody></table></div>` : `<div class="empty">Nenhuma despesa lançada neste mês.${prev.length ? `<br><br><button class="mini-btn" type="button" data-copy>${prev.length === 1 ? "Copiar a despesa" : `Copiar as ${prev.length} despesas`} de ${esc(F.monthLabel(prevYm))}</button><br><small class="src">Útil para aluguel, salários e outros gastos que se repetem. Confira os valores depois.</small>` : ""}</div>`}
+      </section>`;
+    const vi = $("#e-valor", body);
+    vi.addEventListener("input", () => (vi.value = maskCents(vi.value)));
+    $("#exp-form", body).addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const exp = { data: $("#e-data", body).value, categoria: $("#e-cat", body).value, desc: $("#e-desc", body).value.trim(), valor: readMoney(vi.value) };
+      if (!exp.data) { toast("Informe a data.", "err"); return; }
+      if (!exp.valor) { toast("Informe o valor.", "err"); vi.focus(); return; }
+      try {
+        const saved = await DF.saveFinExpense(exp); fin.expenses.unshift(saved);
+        finMonth = F.monthOf(saved.data); toast("Despesa lançada.", "ok"); renderFinanceiro(el); $("#e-desc")?.focus();
+      } catch (ex) { fail(ex); }
+    });
+    $$("tr[data-exp]", body).forEach((tr) => tr.addEventListener("click", async (e) => {
+      const id = tr.dataset.exp;
+      if (e.target.closest("[data-edel]")) { e.target.closest("td").innerHTML = `<span class="confirm-inline">Excluir? <button class="btn-danger" type="button" data-eok>Sim</button><button class="mini-btn" type="button" data-eno>Não</button></span>`; return; }
+      if (e.target.closest("[data-eno]")) { renderFinanceiro(el); return; }
+      if (e.target.closest("[data-eok]")) { try { await DF.deleteFinExpense(id); fin.expenses = fin.expenses.filter((x) => x.id !== id); toast("Despesa excluída."); renderFinanceiro(el); } catch (ex) { fail(ex); } }
+    }));
+    $("[data-copy]", body)?.addEventListener("click", async (e) => {
+      e.target.disabled = true;
+      const [y, m] = finMonth.split("-").map(Number), last = new Date(y, m, 0).getDate();
+      try {
+        for (const p of prev) {
+          const day = String(Math.min(+p.data.slice(8, 10), last)).padStart(2, "0");
+          fin.expenses.unshift(await DF.saveFinExpense({ data: `${finMonth}-${day}`, categoria: p.categoria, desc: p.desc, valor: p.valor }));
+        }
+        toast(`${prev.length} despesas copiadas. Confira os valores.`, "ok");
+      } catch (ex) { fail(ex); }
+      renderFinanceiro(el);
+    });
+  }
+
+  /* ---------- Fechamento do mês ---------- */
+  function finFechamento(body, el) {
+    const m = F.monthClose(fin.cars, fin.expenses, finMonth);
+    const hist = F.history(fin.cars, fin.expenses, finMonth, 6);
+    const compraVendidos = F.r2(m.vendidos.reduce((s, c) => s + (+c.compraValor || 0), 0));
+    const saidas = [["Compra dos carros vendidos", compraVendidos], ...Object.entries(m.gastosPorTipo).map(([k, v]) => [`Gastos: ${k}`, v]), ...Object.entries(m.despesasPorCat).map(([k, v]) => [`Loja: ${k}`, v])].filter(([, v]) => v > 0);
+    const maxS = Math.max(1, ...saidas.map(([, v]) => v));
+    body.innerHTML = `
+      <div class="kpis">
+        <div class="kpi"><span>Faturamento</span><strong data-to="${m.faturamento}" data-fmt="brl">0</strong><small>${m.qtd} carro${m.qtd === 1 ? "" : "s"} vendido${m.qtd === 1 ? "" : "s"}${m.ticketMedio ? ` · ticket médio ${money(m.ticketMedio)}` : ""}</small></div>
+        <div class="kpi"><span>Lucro bruto</span><strong class="${signClass(m.lucroBruto)}" data-to="${m.lucroBruto}" data-fmt="brl">0</strong><small>venda − custo dos carros${m.margem != null ? ` · margem ${pct(m.margem)}` : ""}</small></div>
+        <div class="kpi"><span>Despesas da loja</span><strong data-to="${m.despesas}" data-fmt="brl">0</strong><small>${m.despesasLista.length} lançamento${m.despesasLista.length === 1 ? "" : "s"}</small></div>
+        <div class="kpi hot"><span>Lucro líquido</span><strong class="${m.lucroLiquido < 0 ? "comp-bad" : ""}" data-to="${m.lucroLiquido}" data-fmt="brl">0</strong><small>lucro bruto − despesas da loja</small></div>
+      </div>
+        <section class="panel">
+          <div class="panel-head"><h2>Carros vendidos</h2><button class="mini-btn" type="button" data-csv>Exportar para Excel</button></div>
+          ${m.qtd ? `<div class="table-wrap"><table class="sims fin-table"><thead><tr><th>Venda</th><th>Veículo</th><th class="num">Vendido por</th><th class="num">Custo</th><th class="num">Lucro</th><th class="num">Margem</th><th class="num">Dias</th></tr></thead><tbody>
+            ${m.vendidos.map((c) => { const l = F.lucro(c); return `<tr data-fcar="${esc(c.id)}"><td>${dmy(c.vendaData)}</td><td><b>${esc(fmtPlaca(c.placa))}</b> ${esc(c.modelo)}</td><td class="num">${money(c.vendaValor)}</td><td class="num">${money(F.custoTotal(c))}</td><td class="num ${signClass(l)}">${money(l)}</td><td class="num ${signClass(l)}">${pctOrDash(F.margem(c))}</td><td class="num">${F.dias(c)}</td></tr>`; }).join("")}
+            <tr class="total"><td colspan="2">Total</td><td class="num">${money(m.faturamento)}</td><td class="num">${money(m.custo)}</td><td class="num ${signClass(m.lucroBruto)}">${money(m.lucroBruto)}</td><td class="num">${pctOrDash(m.margem)}</td><td class="num">${m.diasMedios != null ? Math.round(m.diasMedios) : "—"}</td></tr>
+          </tbody></table></div>` : `<div class="empty">Nenhum carro vendido em ${esc(F.monthLabel(finMonth))}.<br><small>Registre a venda na aba <b>Carros</b>, abrindo o carro e preenchendo data e valor de venda.</small></div>`}
+        </section>
+      <div class="two-col">
+        <section class="panel">
+          <div class="panel-head"><h2>Últimos 6 meses</h2><span class="src">Clique num mês para ver o fechamento</span></div>
+          <div class="table-wrap"><table class="sims fin-table"><thead><tr><th>Mês</th><th class="num">Vendidos</th><th class="num">Faturamento</th><th class="num">Lucro bruto</th><th class="num">Despesas</th><th class="num">Lucro líquido</th></tr></thead><tbody>
+            ${hist.slice().reverse().map((h) => `<tr data-ym="${h.ym}"${h.ym === finMonth ? ' class="current"' : ""}><td>${esc(F.monthLabel(h.ym))}</td><td class="num">${h.qtd}</td><td class="num">${money(h.faturamento)}</td><td class="num ${signClass(h.qtd ? h.lucroBruto : null)}">${money(h.lucroBruto)}</td><td class="num">${money(h.despesas)}</td><td class="num ${signClass(h.qtd || h.despesas ? h.lucroLiquido : null)}"><b>${money(h.lucroLiquido)}</b></td></tr>`).join("")}
+          </tbody></table></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>Para onde foi o dinheiro</h2></div>
+          <div class="panel-body funnel fin-funnel">${saidas.length ? saidas.map(([k, v]) => `<div class="funnel-row"><span>${esc(k)}</span><span class="track"><i data-w="${(v / maxS) * 100}" style="background:${k.startsWith("Loja") ? "#7cc4ff" : "var(--orange)"}"></i></span><b>${money(v)}</b></div>`).join("") : `<p class="src" style="margin:0">Sem saídas neste mês.</p>`}
+            ${m.compras.qtd ? `<p class="src" style="margin:8px 0 0">Também foram comprados ${m.compras.qtd} carro${m.compras.qtd === 1 ? "" : "s"} neste mês (${money(m.compras.valor)}). Esse valor entra no custo quando cada carro for vendido.</p>` : ""}
+          </div>
+        </section>
+      </div>`;
+    $$("tr[data-fcar]", body).forEach((tr) => tr.addEventListener("click", () => openFinDrawer(fin.cars.find((c) => c.id === tr.dataset.fcar))));
+    $$("tr[data-ym]", body).forEach((tr) => tr.addEventListener("click", () => { finMonth = tr.dataset.ym; renderFinanceiro(el); }));
+    $("[data-csv]", body).addEventListener("click", () => exportFechamento(m));
+  }
+  function exportFechamento(m) {
+    const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const n = (v) => (v == null ? "" : String(F.r2(v)).replace(".", ","));
+    const row = (...cols) => cols.map(q).join(";");
+    const lines = [
+      row(`Fechamento Da Frota Veículos — ${F.monthLabel(m.ym)}`), "",
+      row("Faturamento", n(m.faturamento)), row("Custo dos carros vendidos", n(m.custo)), row("Lucro bruto", n(m.lucroBruto)),
+      row("Margem (%)", n(m.margem)), row("Despesas da loja", n(m.despesas)), row("Lucro líquido", n(m.lucroLiquido)), "",
+      row("CARROS VENDIDOS"), row("Data venda", "Placa", "Veículo", "Ano", "Data compra", "Valor pago", "Gastos", "Custo total", "Valor venda", "Lucro", "Margem (%)", "Dias em estoque", "Comprador"),
+      ...m.vendidos.map((c) => row(dmy(c.vendaData), fmtPlaca(c.placa), c.modelo, c.ano, dmy(c.compraData), n(c.compraValor), n(F.gastosTotal(c)), n(F.custoTotal(c)), n(c.vendaValor), n(F.lucro(c)), n(F.margem(c)), F.dias(c), c.comprador)), "",
+      row("GASTOS DOS CARROS VENDIDOS"), row("Placa", "Data", "Tipo", "Descrição", "Valor"),
+      ...m.vendidos.flatMap((c) => (c.gastos || []).map((g) => row(fmtPlaca(c.placa), dmy(g.data), g.tipo, g.desc, n(g.valor)))), "",
+      row("DESPESAS DA LOJA"), row("Data", "Categoria", "Descrição", "Valor"),
+      ...m.despesasLista.map((e) => row(dmy(e.data), e.categoria, e.desc, n(e.valor))),
+    ];
+    download(`fechamento-dafrota-${m.ym}.csv`, "﻿" + lines.join("\n"), "text/csv;charset=utf-8");
+    toast("Planilha gerada.", "ok");
+  }
+
+  /* =========================================================
      Configurações
      ========================================================= */
   function storageUsed() { let n = 0; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); n += k.length + (localStorage.getItem(k) || "").length; } } catch {} return n * 2; }
@@ -650,7 +998,7 @@ window.DF.ready.then(function () {
     }));
     $("#bk-export").addEventListener("click", async () => {
       let data;
-      try { data = ONLINE ? await DF.call("backup") : { app: "dafrota", version: 2, exportedAt: new Date().toISOString(), vehicles: read("vehicles", []), leads: read("leads", []), settings: read("settings", {}) }; }
+      try { data = ONLINE ? await DF.call("backup") : { app: "dafrota", version: 2, exportedAt: new Date().toISOString(), vehicles: read("vehicles", []), leads: read("leads", []), settings: read("settings", {}), finCars: read("fin-cars", []), finExpenses: read("fin-expenses", []) }; }
       catch (ex) { fail(ex); return; }
       download(`backup-dafrota-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data), "application/json");
       toast("Backup gerado.", "ok");
@@ -661,8 +1009,8 @@ window.DF.ready.then(function () {
         const data = JSON.parse(await f.text());
         if (data.app !== "dafrota") throw new Error();
         if (ONLINE) await DF.call("restore", { method: "POST", body: data });
-        else { write("vehicles", data.vehicles || []); write("leads", data.leads || []); write("settings", data.settings || {}); }
-        await load(); toast("Backup restaurado.", "ok"); render();
+        else { write("vehicles", data.vehicles || []); write("leads", data.leads || []); write("settings", data.settings || {}); write("fin-cars", data.finCars || []); write("fin-expenses", data.finExpenses || []); }
+        fin = null; await load(); toast("Backup restaurado.", "ok"); render();
       } catch { toast("Arquivo de backup inválido.", "err"); }
     });
   }

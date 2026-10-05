@@ -6,6 +6,7 @@
  *
  * Rotas: api/index.php?r=<rota>
  *   ping, me, login, logout, password, reset, settings, vehicles, leads, backup, restore
+ *   fin, fincar, finexp (financeiro — ver api/financeiro.php)
  */
 declare(strict_types=1);
 require __DIR__ . '/config.php';
@@ -417,14 +418,23 @@ switch ($r) {
         fail(405, 'Método não permitido.');
     }
 
+    case 'fin':
+    case 'fincar':
+    case 'finexp':
+        require_once __DIR__ . '/financeiro.php';
+        finRoute($r, $method);
+
     case 'backup':
         requireAuth();
+        require_once __DIR__ . '/financeiro.php';
         $rows = db()->query('SELECT data FROM leads ORDER BY created_at DESC')->fetchAll();
         out(['app' => 'dafrota', 'version' => 2, 'exportedAt' => now(), 'vehicles' => listVehicles(true),
-             'leads' => array_map(fn($x) => json_decode($x['data'], true), $rows), 'settings' => getSettings()]);
+             'leads' => array_map(fn($x) => json_decode($x['data'], true), $rows), 'settings' => getSettings(),
+             'finCars' => finListCars(), 'finExpenses' => finListExpenses()]);
 
     case 'restore': {
-        requireAuth();
+        $u = requireAuth();
+        require_once __DIR__ . '/financeiro.php';
         $b = body();
         if (($b['app'] ?? '') !== 'dafrota') fail(422, 'Arquivo de backup inválido.');
         $pdo = db();
@@ -443,6 +453,7 @@ switch ($r) {
             $v['createdAt'] = $v['createdAt'] ?? now(); $v['updatedAt'] = now();
             putVehicle($pdo, $v);
         }
+        finRestore($b, $u);
         $pdo->commit();
         out(['ok' => true]);
     }
